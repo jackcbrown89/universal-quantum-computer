@@ -1,6 +1,7 @@
 import numpy as np, matplotlib.pyplot as plt
 import pprint
 from numpy import kron, sqrt, pi, dot, exp, squeeze
+from numpy.random import randint
 
 
 # DECLARE STATIC GATES
@@ -61,6 +62,21 @@ def Phase(circuit, shift, qbit):
         new = dot(circuit, gate)
     return new
 
+def genRandCircuit(num_gates):
+    gate_nums = [randint(0,3) for x in range(0, num_gates)]
+    myInput = []
+    
+    for gate_num in gate_nums:
+        if gate_num == 0:
+            myInput.append(['H', randint(0,3)])
+        if gate_num == 1:
+            firstwire = randint(1,3)
+            myInput.append(['CNOT', firstwire, firstwire-1])
+        if gate_num == 2:
+            myInput.append(['P', randint(0,3), randint(0, 2*pi*100)/100])
+    myInput.append(['Measure'])
+    return myInput
+
 def ReadDescription(fileName):
     myInput_lines=open(fileName).readlines()
     myInput=[]
@@ -90,6 +106,8 @@ circuit = []
 
 inputState = np.array(ReadInput('myInputState.txt'))
 
+myInput = genRandCircuit(24)
+
 for gate in myInput:
     if gate[0] == 'H':
         circuit = Hadamard(H_mat, circuit, int(gate[1]))
@@ -104,4 +122,6 @@ for gate in myInput:
             (8,1)
         ).flatten()
 #        measure(result)
-        print(result)
+#        print(result)
+inv_circuit = np.linalg.inv(circuit)
+print(dot(result, inv_circuit))
