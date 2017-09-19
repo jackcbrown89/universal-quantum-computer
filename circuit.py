@@ -1,20 +1,17 @@
-import numpy as np
+import numpy as np, matplotlib.pyplot as plt
 import pprint
-from numpy import kron, sqrt, pi, dot, exp
+from numpy import kron, sqrt, pi, dot, exp, squeeze
 
+
+# DECLARE STATIC GATES
 H_mat = np.matrix([
     [1/sqrt(2), 1/sqrt(2)],
     [1/sqrt(2), -1/sqrt(2)]
 ])
-
 I = np.identity(2)
-
 CNOT_mat = np.matrix("1 0 0 0 ; 0 1 0 0 ; 0 0 0 1 ; 0 0 1 0")
 
 def Hadamard(H_mat, circuit, qbit):
-    order = [0,0,0]
-    order[int(qbit)] = 1
-    
     if qbit == 0:
         gate = kron(kron(H_mat, I), I)
     elif qbit == 1:
@@ -45,11 +42,9 @@ def CNOT(CNOT_mat, circuit, qbit1, qbit2):
     return new
 
 def Phase(circuit, shift, qbit):
-    order = [0,0,0]
-    order[int(qbit)] = 1
     P_mat = np.matrix([
         [1, 0],
-        [0, exp(-1j*float(shift))]
+        [0, exp(1j*float(shift))]
     ])
     
     if qbit == 0:
@@ -66,7 +61,7 @@ def Phase(circuit, shift, qbit):
         new = dot(circuit, gate)
     return new
 
-def ReadInput(fileName):
+def ReadDescription(fileName):
     myInput_lines=open(fileName).readlines()
     myInput=[]
     numberOfWires=int(myInput_lines[0])
@@ -74,11 +69,27 @@ def ReadInput(fileName):
         myInput.append(line.split())
     return (numberOfWires,myInput)
 
-num_wires, myInput = ReadInput("circuit_desc.txt")
+def ReadInput(fileName):
+    myInput_lines=open(fileName).readlines()
+    myInput = []
+    for line in myInput_lines:
+        myInput.append(complex(float(line.split()[0]), float(line.split()[1])))
+    myInput = np.array(myInput, dtype=complex)
+    return myInput
+    
+def measure(result):
+    p_list = [x**2 for x in result]
+    plt.plot([x for x in range(0,8)], p_list)
+    plt.show()
 
-#print(ReadInput("circuit_desc.txt"))
+    return
 
+num_wires, myInput = ReadDescription("circuit_desc.txt")    
 circuit = []
+
+
+inputState = np.array(ReadInput('myInputState.txt'))
+
 for gate in myInput:
     if gate[0] == 'H':
         circuit = Hadamard(H_mat, circuit, int(gate[1]))
@@ -86,9 +97,11 @@ for gate in myInput:
         circuit = CNOT(CNOT_mat, circuit, int(gate[1]), int(gate[2]))
     elif gate[0] == 'P':
         circuit = Phase(circuit, gate[2], int(gate[1]))
-pprint.pprint(circuit)
-
-#print(dot([1,0,0,0,0,0,0,0],circuit))
-#secondGate=myInput[1][0]
-#firstWire=myInput[0][1]
-#pprint.pprint(kron([1,0,0,0,0,0,0,0], buildCircuit(H_mat, CNOT_mat, I, P_mat)))
+    elif gate[0] == 'Measure':
+        result = np.reshape(squeeze(np.asarray(
+            dot(inputState,circuit)
+                )), 
+            (8,1)
+        ).flatten()
+#        measure(result)
+        print(result)

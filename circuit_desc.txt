@@ -1,6 +1,6 @@
 3
 H 1
-CNOT 1 2
-H 0
-P 1 0.785
-CNOT 0 1
+CNOT 2 1
+H 2
+P 0 0.45
+Measure
