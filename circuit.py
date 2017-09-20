@@ -100,28 +100,43 @@ def measure(result):
 
     return
 
+def genCircuit(myInput, inverse):
+    circuit = []
+    if inverse:
+        if myInput[-1] == ['Measure']:
+            myInput = myInput[len(myInput)-2::-1]
+            myInput.append(['Measure'])
+        else: 
+            myInput = myInput[::-1]
+    print(myInput)
+        
+    for gate in myInput:
+        if gate[0] == 'H':
+            circuit = Hadamard(H_mat, circuit, int(gate[1]))
+        elif gate[0] == 'CNOT':
+            circuit = CNOT(CNOT_mat, circuit, int(gate[1]), int(gate[2]))
+        elif gate[0] == 'P':
+            if inverse:
+                circuit = Phase(circuit, -1*gate[2], int(gate[1]))
+            else:
+                circuit = Phase(circuit, gate[2], int(gate[1]))
+        elif gate[0] == 'Measure':
+            result = np.reshape(squeeze(np.asarray(
+                dot(inputState,circuit)
+                    )), 
+                (8,1)
+            ).flatten()
+            
+    return circuit, result
+
 num_wires, myInput = ReadDescription("circuit_desc.txt")    
-circuit = []
 
 
 inputState = np.array(ReadInput('myInputState.txt'))
 
 myInput = genRandCircuit(24)
+circuit, result = genCircuit(myInput, False)
+inv_circuit = genCircuit(myInput, True)[0]
 
-for gate in myInput:
-    if gate[0] == 'H':
-        circuit = Hadamard(H_mat, circuit, int(gate[1]))
-    elif gate[0] == 'CNOT':
-        circuit = CNOT(CNOT_mat, circuit, int(gate[1]), int(gate[2]))
-    elif gate[0] == 'P':
-        circuit = Phase(circuit, gate[2], int(gate[1]))
-    elif gate[0] == 'Measure':
-        result = np.reshape(squeeze(np.asarray(
-            dot(inputState,circuit)
-                )), 
-            (8,1)
-        ).flatten()
-#        measure(result)
-#        print(result)
-inv_circuit = np.linalg.inv(circuit)
+#inv_circuit = np.linalg.inv(circuit)
 print(dot(result, inv_circuit))
