@@ -86,9 +86,7 @@ def analyze_periods():
     bar = progressbar.ProgressBar()
     for i in bar(range(0, 100)):
         N = 2*(randint(2**2, 2**16))+1
-        N = 71405
         x = randint(2, sqrt(N) + 1)
-        x = 245
         time_start = time()
         periodFind(x, N)
         time_end = time()
