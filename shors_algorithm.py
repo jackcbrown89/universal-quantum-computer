@@ -13,6 +13,7 @@ def periodFind(x, N):
         f = (x**i) % N
         if f == 1:
             print(i)
+            print(x)
             return i
     print('here1')
 
@@ -93,4 +94,4 @@ def analyze_periods():
         find_times.append(time_end-time_start), nums.append(N)
     # np.save('results_period.npy', [nums, find_times])
     # plot.graph_period()
-analyze_periods()
+periodFind(7, 27)

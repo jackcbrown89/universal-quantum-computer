@@ -1,8 +1,9 @@
 import numpy as np, matplotlib.pyplot as plt
-import pprint
-from numpy import kron, sqrt, pi, dot, exp, squeeze, cos, sin
+from shors_quantum import periodFind
+from pprint import pprint
+from numpy import kron, sqrt, pi, dot, exp, squeeze, cos, sin, log2, binary_repr as binr
 from numpy.random import randint
-
+from progressbar import ProgressBar
 
 # DECLARE STATIC GATES
 H_mat = np.matrix([
@@ -10,57 +11,186 @@ H_mat = np.matrix([
     [1/sqrt(2), -1/sqrt(2)]
 ])
 I = np.identity(2)
-CNOT_mat = np.matrix("1 0 0 0 ; 0 1 0 0 ; 0 0 0 1 ; 0 0 1 0")
+CNOT_mat = np.array([
+    [1, 0, 0, 0],
+    [0, 1, 0, 0],
+    [0, 0, 0, 1],
+    [0, 0, 1, 0]
+])
+SWAP_mat = np.array([
+    [1, 0, 0, 0],
+    [0, 0, 1, 0],
+    [0, 1, 0, 0],
+    [0, 0, 0, 1]
+])
 
-def Hadamard(H_mat, circuit, qbit):
-    if qbit == 0:
-        gate = kron(kron(H_mat, I), I)
-    elif qbit == 1:
-        gate = kron(kron(I, H_mat), I)
-    elif qbit == 2:
-        gate = kron(kron(I, I), H_mat)
-    else: print('Invalid wire')
-    
-    if circuit == []:
-        new = gate
+N = 5
+x = 3
+num_wires = int(np.ceil(log2(N)))
+mat_size = int(2 ** np.ceil(log2(N)))
+# print(mat_size)
+
+# 1 IDENTITY
+# 2 HADAMARD
+# 3 CNOT
+# 4 PHASE
+# 5 CPHASE
+# 6 SWAP
+# print(periodFind(3, 7))
+def Hadamard(circuit, target_wire):
+    inp = np.zeros((2 ** mat_size, 1))
+    inp[11] = 1
+    # Build a list of everything to kron
+    stage = np.zeros((mat_size, 1))
+    stage.fill(1)
+    # Keep track of stages
+    total_gate = np.identity(2 ** mat_size)
+
+    gate = np.matrix([[1]])
+    stage[target_wire] = 2
+
+    for i in stage:
+        if i == 1:
+            gate = kron(gate, I)
+        elif i == 2:
+            gate = kron(gate, H_mat)
+
+    unitary = gate
+    print(unitary)
+    if not circuit:
+        new = unitary
     else:
-        new = dot(circuit, gate)
+        new = dot(circuit, unitary)
     return new
 
-def CNOT(CNOT_mat, circuit, qbit1, qbit2):
-    order = [0,0,0]
-    order[int(qbit1)], order[int(qbit2)] = 1, 1
-    
-    if order[0] == 0:
-        gate = kron(I, CNOT_mat)
+
+def CNOT(circuit, input_bit, cbit):
+    inp = np.zeros((2**mat_size, 1))
+    inp[11] = 1
+    swap_count = abs(input_bit-cbit)
+    # Build a list of everything to kron
+    state = np.zeros((mat_size-1, 1))
+    # Keep track of stages
+    total_gate = np.identity(2**mat_size)
+
+    # SWAP DOWNWARDS
+    for s in range(0, swap_count):
+        gate = np.matrix([[1]])
+        state.fill(1)
+        if s == swap_count-1:
+            state[input_bit-1, 0] = 3
+            swap_down = total_gate
+        else:
+            state[cbit+s, 0] = 6
+        print(state)
+        for i in state:
+            if i == 1:
+                gate = kron(gate, I)
+            elif i == 3:
+                gate = kron(gate, CNOT_mat)
+            elif i == 6:
+                gate = kron(gate, SWAP_mat)
+
+    cnot = gate
+    swap_up = np.conj(swap_down).T
+    result = (swap_up @ (cnot @ swap_down)) @ inp
+    unitary = np.conj(swap_down).T @ (cnot @ swap_down)
+    print(result)
+
+    if not circuit:
+        new = unitary
     else:
-        gate = kron(CNOT_mat, I)
-        
-    if circuit == []:
-        new = gate
-    else:
-        new = dot(circuit, gate)
+        new = dot(circuit, unitary)
     return new
 
-def Phase(circuit, shift, qbit):
+
+def CPhase(circuit, target_wire, cbit, phase):
+    CPhase_mat = np.matrix([
+        [1, 0, 0, 0],
+        [0, 1, 0, 0],
+        [0, 0, 1, 0],
+        [0, 0, 0, exp(1j*float(phase))]
+    ])
+    inp = np.zeros((2**mat_size, 1))
+    inp[11] = 1
+    swap_count = abs(target_wire-cbit)
+    # Build a list of everything to kron
+    stage = np.zeros((mat_size-1, 1))
+    # Keep track of stages
+    total_gate = np.identity(2**mat_size)
+
+    # SWAP DOWNWARDS
+    for s in range(0, swap_count):
+        gate = np.matrix([[1]])
+        stage.fill(1)
+        if s == swap_count-1:
+            stage[target_wire-1, 0] = 5
+            swap_down = total_gate
+        else:
+            stage[cbit+s, 0] = 6
+        print(stage)
+        for i in stage:
+            if i == 1:
+                gate = kron(gate, I)
+            elif i == 5:
+                gate = kron(gate, CPhase_mat)
+            elif i == 6:
+                gate = kron(gate, SWAP_mat)
+
+    cphaseU = gate
+    swap_up = np.conj(swap_down).T
+    result = (swap_up @ (cphaseU @ swap_down)) @ inp
+    unitary = np.conj(swap_down).T @ (cphaseU @ swap_down)
+
+    if not circuit:
+        new = unitary
+    else:
+        new = dot(circuit, unitary)
+    return new
+
+# CNOT([], 3, 0)
+# CPhase([], 2, 0, pi)
+
+
+def QFT():
+    print(num_wires)
+    unitaries = np.identity(2 ** mat_size)
+    for i in range(num_wires, -1, -1):
+        for R in range(num_wires-i, 0, -1):
+            target_wire, cbit = i+R, i
+            phase = pi/(2**(num_wires-(target_wire)))
+            print('R', target_wire, cbit, phase)
+            unitary = CPhase([], target_wire, cbit, phase)
+            unitaries = unitary @ unitaries
+
+        # MAKE HADAMARD
+        print('H', i)
+        unitaries = Hadamard([], i) @ unitaries
+
+    return unitaries
+
+# QFT()
+def controlXYmodN(cbit, wire1, wire2):
+    mat = np.zeros((mat_size, mat_size))
+    for j in range(0, mat_size):
+        bin_j = binr(j, int(np.ceil(log2(N))))
+        if bin_j[cbit] == '0':
+            mat[j, j] = 1
+        elif bin_j[cbit] == '1':
+            mat[(x*int(bin_j[wire1:wire1+num_wires])) % N,j] = 1
+    print(mat)
+    return mat
+# print(controlXYmodN(0, 1, 2))
+
+controlXYmodN(1,2,3)
+def Phase(shift):
     P_mat = np.matrix([
         [1, 0],
         [0, exp(1j*float(shift))]
     ])
-    
-    if qbit == 0:
-        gate = kron(kron(P_mat, I), I)
-    elif qbit == 1:
-        gate = kron(kron(I, P_mat), I)
-    elif qbit == 2:
-        gate = kron(kron(I, I), P_mat)
-    else: print('Invalid wire')
-    
-    if circuit == []:
-        new = gate
-    else:
-        new = dot(circuit, gate)
-    return new
+
+    return P_mat
+
 
 def Pauli(circuit, qbit, type):
     if type == 'X':
@@ -94,6 +224,7 @@ def Pauli(circuit, qbit, type):
         new = dot(circuit, gate)
     return new
 
+
 def Rotate(circuit, qbit, type, theta):
     if type == 'X':
         R_mat = np.matrix([
@@ -126,6 +257,7 @@ def Rotate(circuit, qbit, type, theta):
         new = dot(circuit, gate)
     return new
 
+
 def genRandCircuit(num_gates):
     gate_nums = [randint(0,3) for x in range(0, num_gates)]
     myInput = []
@@ -141,6 +273,7 @@ def genRandCircuit(num_gates):
     myInput.append(['Measure'])
     return myInput
 
+
 def ReadDescription(fileName):
     myInput_lines=open(fileName).readlines()
     myInput=[]
@@ -149,6 +282,7 @@ def ReadDescription(fileName):
         myInput.append(line.split())
     return (numberOfWires,myInput)
 
+
 def ReadInput(fileName):
     myInput_lines=open(fileName).readlines()
     myInput = []
@@ -156,13 +290,15 @@ def ReadInput(fileName):
         myInput.append(complex(float(line.split()[0]), float(line.split()[1])))
     myInput = np.array(myInput, dtype=complex)
     return myInput
-    
+
+
 def measure(result):
     p_list = [x**2 for x in result]
     plt.plot([x for x in range(0,8)], p_list)
     plt.show()
 
     return
+
 
 def genCircuit(myInput, inverse):
     circuit = []
@@ -187,10 +323,14 @@ def genCircuit(myInput, inverse):
             circuit = Rotate(circuit, int(gate[1]), 'X')
         elif gate[0] == 'RY':
             circuit = Rotate(circuit, int(gate[1]), 'Y')
+        elif gate[0] == 'CFUNC':
+            circuit = controlXYmodN(circuit, int(gate[-2]), int(gate[-1]), int(gate[1]), int(gate[2]), int(gate[3]))
         elif gate[0] == 'RZ':
             circuit = Rotate(circuit, int(gate[1]), 'Z')
         elif gate[0] == 'CNOT':
-            circuit = CNOT(CNOT_mat, circuit, int(gate[1]), int(gate[2]))
+            circuit = CNOT(circuit, int(gate[1]), int(gate[2]))
+        elif gate[0] == 'R':
+            circuit = CPhase(circuit, int(gate[1]), int(gate[2]), float(gate[3]))
         elif gate[0] == 'P':
             if inverse:
                 circuit = Phase(circuit, -1*gate[2], int(gate[1]))
@@ -205,17 +345,17 @@ def genCircuit(myInput, inverse):
             
     return circuit, result
 
-num_wires, myInput = ReadDescription("circuit_desc.txt")    
+# num_wires, myInput = ReadDescription("circuit_desc.txt")
 
 
 inputState = np.array(ReadInput('myInputState.txt'))
 
-myInput = genRandCircuit(24)
-circuit, result = genCircuit(myInput, False)
-inv_circuit = genCircuit(myInput, True)[0]
+# myInput = genRandCircuit(24)
+# circuit, result = genCircuit(myInput, False)
+# inv_circuit = genCircuit(myInput, True)[0]
 
 #inv_circuit = np.linalg.inv(circuit)
-print(dot(result, inv_circuit))
+# print(dot(result, inv_circuit))
 
 import qutip
 
@@ -226,4 +366,9 @@ def graph(vec):
     b.add_states(vec[0]*up+vec[1]*down)
     b.show()
 
-graph(np.array((result[0], result[1])))
+np.set_printoptions(threshold=np.nan)
+
+in_state = np.zeros((1, 16))
+in_state[0, 15] = 1
+
+# pprint(controlXYmodN(x, N, 3, 4, 5))

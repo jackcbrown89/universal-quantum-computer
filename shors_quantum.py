@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 
 
 def periodFind(x, N):
-    mat_size = int(2 ** np.ceil(log2(N)) + 1)
+    mat_size = int(2 ** np.ceil(log2(N)))
     j_new_mat = np.array(())
 
     U = np.zeros((mat_size, mat_size))
@@ -33,7 +33,8 @@ def periodFind(x, N):
     j_new_mat = j_new_mat.T
     # print(U)
     eig_val = eig(U)[0][randint(0, len(eig(U)[0]))]
-    r = Fraction(float((log(x) / (1j * 2 * pi)))).limit_denominator().denominator
+    print(eig_val)
+    r = Fraction(float((log(eig_val) / (1j * 2 * pi)))).limit_denominator().denominator
     return r
 
 
@@ -114,4 +115,5 @@ def analyze_periods():
 
 
 # periodFind(7, 153)
-main(153)
+if __name__ == "main":
+    main(15)
