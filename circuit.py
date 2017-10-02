@@ -24,10 +24,12 @@ SWAP_mat = np.array([
     [0, 0, 0, 1]
 ])
 
-N = 5
-x = 3
+N = 15
+x = 7
 num_wires = int(np.ceil(log2(N)))
-mat_size = int(2 ** np.ceil(log2(N)))
+num_wires_phase = int(num_wires)
+mat_size = int(2 ** num_wires)
+mat_size_phase = int(2 ** num_wires_phase)
 # print(mat_size)
 
 # 1 IDENTITY
@@ -37,6 +39,7 @@ mat_size = int(2 ** np.ceil(log2(N)))
 # 5 CPHASE
 # 6 SWAP
 # print(periodFind(3, 7))
+
 def Hadamard(circuit, target_wire):
     inp = np.zeros((2 ** mat_size, 1))
     inp[11] = 1
@@ -152,7 +155,7 @@ def CPhase(circuit, target_wire, cbit, phase):
 # CPhase([], 2, 0, pi)
 
 
-def QFT():
+def QFT(circuit):
     print(num_wires)
     unitaries = np.identity(2 ** mat_size)
     for i in range(num_wires, -1, -1):
@@ -161,28 +164,45 @@ def QFT():
             phase = pi/(2**(num_wires-(target_wire)))
             print('R', target_wire, cbit, phase)
             unitary = CPhase([], target_wire, cbit, phase)
-            unitaries = unitary @ unitaries
+            unitaries = unitaries @ unitary
 
         # MAKE HADAMARD
         print('H', i)
-        unitaries = Hadamard([], i) @ unitaries
+        unitaries = kron(kron(np.conj(Hadamard([], i) @ unitaries).T, I), I)
+        circuit = circuit @ unitaries
+    return circuit
 
-    return unitaries
+# handles the hadamards and control unitaries
+def controlXYmodN(circuit, cbit, target1, num_targets):
+    uni = np.identity(mat_size_phase)
+    hads = np.matrix([[1]])
+    for i in range(0, num_wires_phase):
+        hads = kron(hads, H_mat)
+    uni = uni @ hads
+    num_unis = 2**(target1-cbit-1)
+    for count in range(0, num_unis):
+        mat = np.zeros((mat_size_phase, mat_size_phase))
+        # +1 for the adjacent cbit
+        for j in range(0, 2**(num_targets+1)):
+            bin_j = binr(j, num_wires_phase)
+            print(bin_j)
 
-# QFT()
-def controlXYmodN(cbit, wire1, wire2):
-    mat = np.zeros((mat_size, mat_size))
-    for j in range(0, mat_size):
-        bin_j = binr(j, int(np.ceil(log2(N))))
-        if bin_j[cbit] == '0':
-            mat[j, j] = 1
-        elif bin_j[cbit] == '1':
-            mat[(x*int(bin_j[wire1:wire1+num_wires])) % N,j] = 1
-    print(mat)
-    return mat
-# print(controlXYmodN(0, 1, 2))
+            if bin_j[cbit] == '0':
+                mat[j, j] = 1
+            elif bin_j[cbit] == '1':
+                print(x*int(bin_j[target1:], 2) % N)
+                mat[(x*int(bin_j[target1:], 2) % N), j] = 1
+        uni = uni @ mat
+    if not circuit:
+        new = uni
+    else:
+        new = circuit @ uni
+    return new
 
-controlXYmodN(1,2,3)
+circuit = controlXYmodN([], 0, 1, 3)
+circuit = QFT(circuit)
+print(circuit)
+
 def Phase(shift):
     P_mat = np.matrix([
         [1, 0],
