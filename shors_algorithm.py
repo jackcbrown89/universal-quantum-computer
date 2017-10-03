@@ -55,8 +55,8 @@ def main(N):
     else:
         # print('Prime number detected. Stopping...')
         return False
-    # print('%s can be factored by %s and %s' % (f1*f2, f1, f2))
-    # print('Fails:\t%s' % fail_count)
+    print('%s can be factored by %s and %s' % (f1*f2, f1, f2))
+    print('Fails:\t%s' % fail_count)
 
     return fail_count
 
@@ -94,4 +94,4 @@ def analyze_periods():
         find_times.append(time_end-time_start), nums.append(N)
     # np.save('results_period.npy', [nums, find_times])
     # plot.graph_period()
-periodFind(7, 27)
+main(301)

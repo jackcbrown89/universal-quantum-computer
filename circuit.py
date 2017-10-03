@@ -27,7 +27,9 @@ SWAP_mat = np.array([
 N = 15
 x = 7
 num_wires = int(np.ceil(log2(N)))
+num_wires = 8
 num_wires_phase = int(num_wires)
+num_wires_phase = 4
 mat_size = int(2 ** num_wires)
 mat_size_phase = int(2 ** num_wires_phase)
 # print(mat_size)
@@ -41,13 +43,13 @@ mat_size_phase = int(2 ** num_wires_phase)
 # print(periodFind(3, 7))
 
 def Hadamard(circuit, target_wire):
-    inp = np.zeros((2 ** mat_size, 1))
+    inp = np.zeros((mat_size, 1))
     inp[11] = 1
     # Build a list of everything to kron
     stage = np.zeros((mat_size, 1))
     stage.fill(1)
     # Keep track of stages
-    total_gate = np.identity(2 ** mat_size)
+    total_gate = np.identity(mat_size)
 
     gate = np.matrix([[1]])
     stage[target_wire] = 2
@@ -68,13 +70,13 @@ def Hadamard(circuit, target_wire):
 
 
 def CNOT(circuit, input_bit, cbit):
-    inp = np.zeros((2**mat_size, 1))
+    inp = np.zeros((mat_size, 1))
     inp[11] = 1
     swap_count = abs(input_bit-cbit)
     # Build a list of everything to kron
     state = np.zeros((mat_size-1, 1))
     # Keep track of stages
-    total_gate = np.identity(2**mat_size)
+    total_gate = np.identity(mat_size)
 
     # SWAP DOWNWARDS
     for s in range(0, swap_count):
@@ -114,7 +116,7 @@ def CPhase(circuit, target_wire, cbit, phase):
         [0, 0, 1, 0],
         [0, 0, 0, exp(1j*float(phase))]
     ])
-    inp = np.zeros((2**mat_size, 1))
+    inp = np.zeros((mat_size, 1))
     inp[11] = 1
     swap_count = abs(target_wire-cbit)
     # Build a list of everything to kron
@@ -157,7 +159,7 @@ def CPhase(circuit, target_wire, cbit, phase):
 
 def QFT(circuit):
     print(num_wires)
-    unitaries = np.identity(2 ** mat_size)
+    unitaries = np.identity(mat_size)
     for i in range(num_wires, -1, -1):
         for R in range(num_wires-i, 0, -1):
             target_wire, cbit = i+R, i
@@ -199,17 +201,25 @@ def controlXYmodN(circuit, cbit, target1, num_targets):
         new = circuit @ uni
     return new
 
-circuit = controlXYmodN([], 0, 1, 3)
-circuit = QFT(circuit)
-print(circuit)
-
-def Phase(shift):
+def Phase(circuit, qbit, shift):
     P_mat = np.matrix([
         [1, 0],
         [0, exp(1j*float(shift))]
     ])
+    if qbit == 0:
+        gate = kron(kron(P_mat, I), I)
+    elif qbit == 1:
+        gate = kron(kron(I, P_mat), I)
+    elif qbit == 2:
+        gate = kron(kron(I, I), P_mat)
+    else:
+        print('Invalid wire')
 
-    return P_mat
+    if circuit == []:
+        new = gate
+    else:
+        new = dot(circuit, gate)
+    return new
 
 
 def Pauli(circuit, qbit, type):
@@ -332,7 +342,7 @@ def genCircuit(myInput, inverse):
         
     for gate in myInput:
         if gate[0] == 'H':
-            circuit = Hadamard(H_mat, circuit, int(gate[1]))
+            circuit = Hadamard(circuit, int(gate[1]))
         elif gate[0] == 'PX':
             circuit = Pauli(circuit, int(gate[1]), 'X')
         elif gate[0] == 'PY':
@@ -340,11 +350,11 @@ def genCircuit(myInput, inverse):
         elif gate[0] == 'PZ':
             circuit = Pauli(circuit, int(gate[1]), 'Z')
         elif gate[0] == 'RX':
-            circuit = Rotate(circuit, int(gate[1]), 'X')
+            circuit = Rotate(circuit, int(gate[1]), 'X', int(gate[2]))
         elif gate[0] == 'RY':
-            circuit = Rotate(circuit, int(gate[1]), 'Y')
+            circuit = Rotate(circuit, int(gate[1]), 'Y', int(gate[2]))
         elif gate[0] == 'CFUNC':
-            circuit = controlXYmodN(circuit, int(gate[-2]), int(gate[-1]), int(gate[1]), int(gate[2]), int(gate[3]))
+            circuit = controlXYmodN(circuit, int(gate[1]), int(gate[2]), int(gate[3]))
         elif gate[0] == 'RZ':
             circuit = Rotate(circuit, int(gate[1]), 'Z')
         elif gate[0] == 'CNOT':
@@ -365,10 +375,10 @@ def genCircuit(myInput, inverse):
             
     return circuit, result
 
-# num_wires, myInput = ReadDescription("circuit_desc.txt")
+# myInput = ReadDescription("circuit_desc.txt")
 
 
-inputState = np.array(ReadInput('myInputState.txt'))
+# inputState = np.array(ReadInput('myInputState.txt'))
 
 # myInput = genRandCircuit(24)
 # circuit, result = genCircuit(myInput, False)
@@ -391,4 +401,6 @@ np.set_printoptions(threshold=np.nan)
 in_state = np.zeros((1, 16))
 in_state[0, 15] = 1
 
-# pprint(controlXYmodN(x, N, 3, 4, 5))
+circuit = controlXYmodN([], 0, 1, 3)
+circuit = QFT(circuit)
+print(circuit)
